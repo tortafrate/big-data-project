@@ -1,0 +1,29 @@
+# --- Données et Volumes Docker ---
+data/*
+!data/sitemap-page1.xml
+volumes/
+.minio.sys/
+
+# --- Airflow ---
+logs/
+plugins/
+airflow.db
+airflow.cfg
+webserver_config.py
+unittests.cfg
+
+# --- Python & Spark ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.spark_staging/
+metastore_db/
+derby.log
+checkpoint/
+
+# --- IDE & OS ---
+.DS_Store
+.vscode/
+.idea/
+.env
