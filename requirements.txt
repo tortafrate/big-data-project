@@ -1,0 +1,8 @@
+apache-airflow-providers-apache-spark
+apache-airflow-providers-amazon
+apache-airflow-providers-elasticsearch
+pyspark
+beautifulsoup4
+requests
+pandas
+s3fs
