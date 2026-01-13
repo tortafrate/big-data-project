@@ -1,16 +1,12 @@
-version: '3.8'
-
 x-airflow-common: &airflow-common
   image: apache/airflow:${AIRFLOW_VERSION}
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    # On injecte les variables Postgres ici
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    # Connexion à MinIO (S3) via variables
     AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
     AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
     AWS_DEFAULT_REGION: us-east-1
@@ -51,7 +47,6 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-    # Ici on réutilise les variables pour configurer le client MC
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
@@ -67,7 +62,6 @@ services:
     image: apache/spark:${SPARK_VERSION}
     container_name: spark_master
     environment:
-      - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
@@ -76,14 +70,13 @@ services:
       - "${SPARK_WEB_PORT}:8080"
       - "7077:7077"
     volumes:
-      - ./scripts:/opt/bitnami/spark/scripts
+      - ./scripts:/opt/spark/scripts
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
 
   spark-worker:
     image: apache/spark:${SPARK_VERSION}
     container_name: spark_worker
     environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -93,7 +86,8 @@ services:
     depends_on:
       - spark-master
     volumes:
-      - ./scripts:/opt/bitnami/spark/scripts
+      - ./scripts:/opt/spark/scripts
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
 
   # ----------------------------------------
   # 3. ORCHESTRATION (Airflow)
@@ -115,7 +109,7 @@ services:
   airflow-webserver:
     <<: *airflow-common
     container_name: airflow_webserver
-    command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow webserver"
+    command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow api-server"
     ports:
       - "${AIRFLOW_WEB_PORT}:8080"
     healthcheck:
@@ -138,19 +132,13 @@ services:
   airflow-init:
     <<: *airflow-common
     container_name: airflow_init
-    # Supprimez la ligne "command: version" qui était ici
     environment:
       <<: *airflow-common-env
-      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WWW_USER_USERNAME}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_WWW_USER_PASSWORD}
-    # On garde uniquement cette commande qui initialise tout
-    command: >
-      bash -c "
-        airflow db init &&
-        airflow users create --role Admin --username ${AIRFLOW_WWW_USER_USERNAME} --password ${AIRFLOW_WWW_USER_PASSWORD} --email airflow@example.com --firstname Spark --lastname User
-      "
+    command: bash -c "airflow db migrate && airflow version"
 
   # ----------------------------------------
   # 4. INDEXATION & VIZ (Elasticsearch / Kibana)
