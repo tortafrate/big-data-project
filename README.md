@@ -47,19 +47,19 @@ docker compose up -d
 
 Une fois les conteneurs (Airflow, Spark, MinIO, ELK) démarrés, accédez aux interfaces via votre navigateur :
 
-* **Airflow Webserver** : [http://localhost:8080](https://www.google.com/search?q=http://localhost:8080)
-* *Credentials* : définis dans `.env` (défaut : `airflow` / `airflow`).
+* **Airflow Webserver** : [http://localhost:8080](http://localhost:8080)
+    * *Credentials* : définis dans `.env` (défaut : `airflow` / `airflow`).
+    * **⚠️ Important** : Si ces identifiants ne fonctionnent pas, consultez les logs du service `airflow-webserver` ou `airflow-init` (via `docker compose logs airflow-webserver` ou dans le `rapport_debug.txt` généré par `debug.sh`). Il est possible que la création de l'utilisateur personnalisé ait été ignorée au profit d'un utilisateur **admin** par défaut dont le mot de passe aléatoire est affiché dans les logs.
 
 
-* **Spark Master** : [http://localhost:9090](https://www.google.com/search?q=http://localhost:9090)
-* *Port configuré via SPARK_WEB_PORT dans le .env*.
+* **Spark Master** : [http://localhost:9090](http://localhost:9090)
+    * *Port configuré via SPARK_WEB_PORT dans le .env*.
 
 
-* **MinIO Console** : [http://localhost:9001](https://www.google.com/search?q=http://localhost:9001)
-* *Credentials* : définis dans `.env` (défaut : `minioadmin` / `minioadmin`).
+* **MinIO Console** : [http://localhost:9001](http://localhost:9001)
+    * *Credentials* : définis dans `.env` (défaut : `minioadmin` / `minioadmin`).
 
-
-* **Kibana** : [http://localhost:5601](https://www.google.com/search?q=http://localhost:5601)
+* **Kibana** : [http://localhost:5601](http://localhost:5601)
 
 Les ports peuvent être modifiés directement dans le fichier `.env`.
 
