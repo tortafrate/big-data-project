@@ -21,9 +21,7 @@ x-airflow-common: &airflow-common
       condition: service_healthy
 
 services:
-  # ----------------------------------------
-  # 1. STOCKAGE (Data Lake S3)
-  # ----------------------------------------
+  # 1. STOCKAGE
   minio:
     image: minio/minio
     container_name: datalake_minio
@@ -55,9 +53,7 @@ services:
       exit 0;
       "
 
-  # ----------------------------------------
-  # 2. TRAITEMENT (Spark Cluster)
-  # ----------------------------------------
+  # 2. TRAITEMENT
   spark-master:
     image: apache/spark:${SPARK_VERSION}
     container_name: spark_master
@@ -89,9 +85,7 @@ services:
       - ./scripts:/opt/spark/scripts
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
 
-  # ----------------------------------------
-  # 3. ORCHESTRATION (Airflow)
-  # ----------------------------------------
+  # 3. ORCHESTRATION
   postgres:
     image: postgres:${POSTGRES_VERSION}
     container_name: airflow_postgres
@@ -129,18 +123,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  airflow-init:
-    <<: *airflow-common
-    container_name: airflow_init
-    environment:
-      <<: *airflow-common-env
-      _AIRFLOW_DB_MIGRATE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WWW_USER_USERNAME}
-      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_WWW_USER_PASSWORD}
-    command: bash -c "airflow db migrate && airflow version"
-
-    airflow-dag-processor:
+  airflow-dag-processor:
     <<: *airflow-common
     container_name: airflow_dag_processor
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow dag-processor"
@@ -156,9 +139,18 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  # ----------------------------------------
-  # 4. INDEXATION & VIZ (Elasticsearch / Kibana)
-  # ----------------------------------------
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow_init
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WWW_USER_USERNAME}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_WWW_USER_PASSWORD}
+    command: bash -c "airflow db migrate && airflow version"
+
+  # 4. INDEXATION
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
     container_name: elasticsearch
