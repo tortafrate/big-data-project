@@ -1,7 +1,5 @@
 services:
-  # ----------------------------------------
-  # 1. INFRASTRUCTURE DE BASE (Postgres)
-  # ----------------------------------------
+  # --- 1. BASE DE DONNÉES ---
   postgres:
     image: postgres:17.7
     container_name: airflow_postgres
@@ -16,9 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # ----------------------------------------
-  # 2. AIRFLOW 3 (Les 5 services obligatoires)
-  # ----------------------------------------
+  # --- 2. AIRFLOW 3 (LES 5 SERVICES) ---
   airflow-init:
     image: apache/airflow:3.1.5
     container_name: airflow_init
@@ -43,8 +39,6 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
       - ./dags:/opt/airflow/dags
       - ./requirements.txt:/opt/airflow/requirements.txt
@@ -59,8 +53,6 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
       - ./dags:/opt/airflow/dags
       - ./requirements.txt:/opt/airflow/requirements.txt
@@ -75,8 +67,6 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
       - ./dags:/opt/airflow/dags
       - ./requirements.txt:/opt/airflow/requirements.txt
@@ -91,8 +81,6 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
       - ./dags:/opt/airflow/dags
       - ./requirements.txt:/opt/airflow/requirements.txt
@@ -101,9 +89,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  # ----------------------------------------
-  # 3. STOCKAGE & TRAITEMENT
-  # ----------------------------------------
+  # --- 3. MINIO & SPARK ---
   minio:
     image: minio/minio
     container_name: datalake_minio
@@ -119,7 +105,6 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
-      timeout: 20s
       retries: 3
 
   minio-create-bucket:
@@ -159,16 +144,13 @@ services:
       - ./scripts:/opt/spark/scripts
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
 
-  # ----------------------------------------
-  # 4. VISUALISATION
-  # ----------------------------------------
+  # --- 4. ELASTICSEARCH & KIBANA ---
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.2.3
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "${ELASTIC_PORT}:9200"
     volumes:
