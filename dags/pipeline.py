@@ -5,7 +5,7 @@ from datetime import datetime
 with DAG(
     dag_id='airsoft_scraper_pipeline',
     start_date=datetime(2026, 1, 1),
-    schedule_interval=None, # On le lance manuellement pour tester
+    schedule=None,  # <--- CORRECTION ICI (Airflow 3 oblige)
     catchup=False
 ) as dag:
 
