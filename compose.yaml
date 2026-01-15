@@ -14,7 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # --- 2. AIRFLOW 3 (LES 5 SERVICES) ---
+  # --- 2. AIRFLOW 3 (SERVICES CORRIGÉS) ---
   airflow-init:
     image: apache/airflow:3.1.5
     container_name: airflow_init
@@ -41,6 +41,8 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts      # <--- AJOUTÉ : Pour trouver scraper.py
+      - ./logs:/opt/airflow/logs            # <--- AJOUTÉ : Pour voir les erreurs
       - ./requirements.txt:/opt/airflow/requirements.txt
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow api-server"
     depends_on:
@@ -55,6 +57,8 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts      # <--- AJOUTÉ
+      - ./logs:/opt/airflow/logs            # <--- AJOUTÉ
       - ./requirements.txt:/opt/airflow/requirements.txt
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow scheduler"
     depends_on:
@@ -69,6 +73,8 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts      # <--- AJOUTÉ
+      - ./logs:/opt/airflow/logs            # <--- AJOUTÉ
       - ./requirements.txt:/opt/airflow/requirements.txt
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow dag-processor"
     depends_on:
@@ -83,6 +89,8 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts      # <--- AJOUTÉ
+      - ./logs:/opt/airflow/logs            # <--- AJOUTÉ
       - ./requirements.txt:/opt/airflow/requirements.txt
     command: bash -c "pip install -r /opt/airflow/requirements.txt && airflow triggerer"
     depends_on:
@@ -144,13 +152,14 @@ services:
       - ./scripts:/opt/spark/scripts
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
 
-  # --- 4. ELASTICSEARCH & KIBANA ---
+  # --- 4. VISUALISATION ---
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.2.3
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "${ELASTIC_PORT}:9200"
     volumes:
