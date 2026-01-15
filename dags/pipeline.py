@@ -2,10 +2,11 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from datetime import datetime
 
+# Définition du DAG
 with DAG(
     dag_id='airsoft_scraper_pipeline',
     start_date=datetime(2026, 1, 1),
-    schedule=None,  # <--- CORRECTION ICI (Airflow 3 oblige)
+    schedule=None,  # <--- C'est ici la correction pour Airflow 3
     catchup=False
 ) as dag:
 
