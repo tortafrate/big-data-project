@@ -1,114 +1,106 @@
-# Big Data Project
+# Big Data Project - Pipeline d'Ingestion Airsoft
 
-Ce projet déploie une architecture Big Data complète et conteneurisée en local. Il intègre un Data Lake (MinIO), un cluster de traitement distribué (Spark), un orchestrateur de workflows (Airflow) et une stack d'indexation et de visualisation (Elasticsearch & Kibana).
+Ce projet déploie une architecture Big Data complète et conteneurisée en local pour **scraper, traiter, analyser et indexer des annonces de vente d'Airsoft**. Il intègre un Data Lake (MinIO), un cluster de traitement distribué (Spark), un orchestrateur de workflows (Airflow) et une stack de visualisation (Elasticsearch & Kibana).
 
-## Prérequis
+## 🏗 Architecture du Pipeline
 
-Ce projet est conçu pour fonctionner sur n'importe quel système d'exploitation capable d'exécuter Docker :
+Le pipeline de données est orchestré par le DAG Airflow `1_ingestion_complete_pipeline` et suit une architecture en couches (Bronze/Silver/Gold) :
 
-* **Linux** (Ubuntu, Debian, Fedora, etc.)
-* **macOS** (Intel ou Apple Silicon)
-* **Windows** (via WSL2 recommandé)
+1.  **Ingestion (Bronze / Raw)** :
+    * **Source** : Scrape les annonces depuis [airsoft-occasion.fr](https://www.airsoft-occasion.fr).
+    * **Techno** : Script Python (`scraper.py`) avec `BeautifulSoup` et `boto3`.
+    * **Stockage** : JSON brut dans MinIO (`s3://datalake/raw/...`).
 
-**Outils nécessaires :**
-* [Docker](https://docs.docker.com/get-docker/) et [Docker Compose](https://docs.docker.com/compose/install/) (version V2 recommandée).
-* Git.
-* Un terminal Bash ou compatible (pour les scripts de maintenance).
+2.  **Nettoyage (Silver / Formatted)** :
+    * **Traitement** : Job Spark (`spark_cleaning.py`) qui lit les JSON bruts, extrait les prix, nettoie les titres et normalise les schémas.
+    * **Stockage** : Parquet partitionné par date dans MinIO (`s3://datalake/formatted/...`).
 
-## Installation
+3.  **Agrégation (Gold / Usage)** :
+    * **Traitement** : Job Spark (`spark_aggregation.py`) qui calcule des statistiques journalières (prix moyen, min, max, nombre d'annonces).
+    * **Stockage** : Parquet dans MinIO (`s3://datalake/usage/...`).
+
+4.  **Indexation & Visualisation** :
+    * **Indexation** : Script Python (`indexer.py`) qui lit la couche *Formatted* et pousse les documents dans **Elasticsearch** (index `airsoft-ads`).
+    * **Visualisation** : Exploration des données via **Kibana**.
+
+## 📋 Prérequis
+
+* **Docker** et **Docker Compose** (V2 recommandée).
+* **Git**.
+* Minimum **6-8 Go de RAM** alloués à Docker (la stack complète est gourmande).
+* **OpenSSL** (généralement préinstallé sur Linux/macOS/WSL) pour générer les clés.
+
+## 🚀 Installation et Démarrage
 
 1.  **Cloner le projet** :
     ```bash
-    git clone https://github.com/tortafrate/big-data-project.git
-    cd big-data-project-agdb__archi
+    git clone [https://github.com/tortafrate/big-data-project.git](https://github.com/tortafrate/big-data-project.git)
+    cd big-data-project-agdb__scraping_-_ingestion
     ```
 
 2.  **Configuration de l'environnement** :
-    Le projet utilise des variables d'environnement pour définir les versions et les identifiants. Créez votre fichier `.env` à partir de l'exemple fourni :
+    Copiez le fichier d'exemple pour initialiser les variables :
     ```bash
     cp .env.exemple .env
     ```
-    *Note : Vous pouvez éditer le fichier `.env` pour modifier les ports ou les mots de passe si nécessaire.*
 
-3.  **Dépendances Python** :
-    Les librairies Python nécessaires (comme `pyspark`, `pandas`, `apache-airflow-providers-...`) sont listées dans le fichier `requirements.txt`.
-    Elles sont **automatiquement installées** à l'intérieur des conteneurs Airflow lors du démarrage. Vous n'avez aucune installation manuelle à faire sur votre machine hôte.
+    **⚠️ Génération des clés de sécurité (Obligatoire)** :
+    Le fichier `.env` contient des variables critiques (`AIRFLOW__WEBSERVER__SECRET_KEY` et `AIRFLOW__API_AUTH__JWT_SECRET`) marquées comme `<à initialiser>`. Vous devez les remplacer par des chaînes aléatoires sécurisées.
 
-## Exécution du projet
+    Exécutez cette commande pour générer une clé hexadécimale :
+    ```bash
+    openssl rand -hex 32
+    ```
+    Copiez la sortie et remplacez la valeur dans `.env`. Répétez l'opération pour la deuxième clé.
+    
+    *Alternative rapide (Linux/Mac/WSL) pour tout remplacer automatiquement :*
+    ```bash
+    sed -i "s/<à initialiser>/$(openssl rand -hex 32)/g" .env
+    ```
 
-Démarrez l'ensemble de l'infrastructure en arrière-plan :
+3.  **Lancement des services** :
+    Construisez les images (Airflow custom, Spark) et démarrez les conteneurs :
+    ```bash
+    docker compose up -d --build
+    ```
 
-```bash
-docker compose up -d
+## 🖥️ Accès aux Interfaces
 
-```
+Une fois l'infrastructure démarrée, les services sont accessibles aux adresses suivantes :
 
-### Accès aux services
+| Service | URL | Identifiants par défaut (dans .env) |
+| :--- | :--- | :--- |
+| **Airflow** | [http://localhost:8080](http://localhost:8080) | `airflow` / `airflow` |
+| **MinIO Console** | [http://localhost:9001](http://localhost:9001) | `minioadmin` / `minioadmin` |
+| **Spark Master** | [http://localhost:9090](http://localhost:9090) | *(Aucun)* |
+| **Kibana** | [http://localhost:5601](http://localhost:5601) | *(Aucun)* |
 
-Une fois les conteneurs (Airflow, Spark, MinIO, ELK) démarrés, accédez aux interfaces via votre navigateur :
+## ▶️ Utilisation
 
-* **Airflow Webserver** : [http://localhost:8080](http://localhost:8080)
-    * *Credentials* : définis dans `.env` (défaut : `airflow` / `airflow`).
-    * **⚠️ Important** : Si ces identifiants ne fonctionnent pas, consultez les logs du service `airflow-webserver` ou `airflow-init` (via `docker compose logs airflow-webserver` ou dans le `rapport_debug.txt` généré par `debug.sh`). Il est possible que la création de l'utilisateur personnalisé ait été ignorée au profit d'un utilisateur **admin** par défaut dont le mot de passe aléatoire est affiché dans les logs.
+1.  Rendez-vous sur l'interface **Airflow**.
+2.  Activez le DAG **`1_ingestion_complete_pipeline`**.
+3.  Déclenchez-le manuellement (bouton "Trigger DAG") ou attendez l'exécution planifiée (`@daily`).
 
+**Vérification des données :**
+* Dans **MinIO** : Naviguez dans le bucket `datalake` pour voir les dossiers `raw`, `formatted` et `usage`.
+* Dans **Kibana** :
+    * Allez dans *Stack Management* > *Data Views*.
+    * Créez une vue pour l'index `airsoft-ads`.
+    * Visualisez les annonces dans *Discover*.
 
-* **Spark Master** : [http://localhost:9090](http://localhost:9090)
-    * *Port configuré via SPARK_WEB_PORT dans le .env*.
+## 🛠️ Développement et Débogage
 
+### Scripts utilitaires
 
-* **MinIO Console** : [http://localhost:9001](http://localhost:9001)
-    * *Credentials* : définis dans `.env` (défaut : `minioadmin` / `minioadmin`).
+* **`debug.sh`** : Génère un rapport complet (`rapport_debug.txt`) sur l'état des conteneurs et les logs critiques.
+    ```bash
+    chmod +x debug.sh
+    ./debug.sh
+    ```
 
-* **Kibana** : [http://localhost:5601](http://localhost:5601)
+### Problèmes courants
 
-Les ports peuvent être modifiés directement dans le fichier `.env`.
-
-## Débogage
-
-Un script `debug.sh` est fourni pour générer un rapport sur l'état des conteneurs et des logs.
-
-```bash
-chmod +x debug.sh
-./debug.sh
-
-```
-
-Le rapport sera sauvegardé dans `rapport_debug.txt`.
-
-**Compatibilité du script** : Ce script a été validé sous **Fedora 43**. Étant écrit en Bash standard utilisant les commandes Docker CLI, il est également utilisable sur la plupart des distributions Linux, macOS, et Windows (via Git Bash ou WSL).
-
-## Gestion des erreurs courantes
-
-### 1. Port déjà utilisé (Port already allocated)
-
-**Erreur :** `Bind for 0.0.0.0:8080 failed: port is already allocated`
-**Cause :** Un autre service sur votre machine utilise déjà ce port.
-**Solution :**
-
-* Arrêtez le service conflictuel.
-* Ou modifiez le port dans le fichier `.env` (par exemple, changez `AIRFLOW_WEB_PORT` à `8081`) et relancez `docker compose up -d`.
-
-### 2. Nom de conteneur déjà emprunté
-
-**Erreur :** `The container name "/airflow_webserver" is already in use by container "..."`
-**Cause :** Un ancien conteneur mal arrêté porte le même nom.
-**Solution :**
-Supprimez les conteneurs existants du projet :
-
-```bash
-docker compose down
-# Si l'erreur persiste sur un conteneur spécifique :
-docker rm -f airflow_webserver
-
-```
-
-### 3. Elasticsearch s'arrête immédiatement (Exit Code 78 ou 137)
-
-**Cause :** Souvent dû à une mémoire insuffisante ou une configuration système `vm.max_map_count` trop basse sur Linux.
-**Solution :**
-Augmentez la limite système (sur Linux/WSL) :
-
-```bash
-sudo sysctl -w vm.max_map_count=262144
-
-```
+* **Erreur `Bind for 0.0.0.0:8080 failed`** : Le port 8080 est déjà pris. Modifiez `AIRFLOW_WEB_PORT` dans le fichier `.env`.
+* **Elasticsearch Crash (Exit 78/137)** : Manque de mémoire ou `vm.max_map_count` trop bas.
+    * Linux/WSL : `sudo sysctl -w vm.max_map_count=262144`
+* **Spark : `JAVA_HOME not set`** : Les images Docker fournies gèrent Java. Assurez-vous que les conteneurs `spark-master` et `spark-worker` sont bien basés sur l'image construite via `Dockerfile.spark`.
