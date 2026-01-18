@@ -1,7 +1,7 @@
 apache-airflow-providers-apache-spark
 apache-airflow-providers-amazon
 apache-airflow-providers-elasticsearch
-pyspark
+pyspark==3.5.1
 beautifulsoup4
 requests
 pandas

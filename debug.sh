@@ -23,7 +23,8 @@ log_command "docker compose logs spark-worker"
 log_command "docker compose logs kibana"
 log_command "docker compose logs airflow-init"
 log_command "docker compose logs airflow-scheduler"
-log_command "docker compose logs airflow-webserver"
+log_command "docker compose logs airflow-api-server"
+log_command "docker compose logs airflow-dag-processor"
 
 log_command "docker compose logs minio-create-bucket"
 
@@ -33,5 +34,8 @@ log_command "docker compose exec -T airflow-scheduler airflow dags list"
 log_command "docker compose exec -T airflow-scheduler airflow db check"
 
 log_command "curl -s -X GET 'http://localhost:9200/_cluster/health?pretty' || echo 'Impossible de joindre Elasticsearch sur le port 9200'"
+
+log_command "docker exec -it airflow_scheduler airflow config get-value core execution_api_server_url"
+log_command "docker exec -it airflow_scheduler curl -sf http://airflow-api-server:8080/execution/ || echo 'KO'"
 
 echo "Terminé. Résultats complets dans $OUTPUT_FILE"
