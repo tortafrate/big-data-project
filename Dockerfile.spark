@@ -2,7 +2,6 @@ FROM apache/spark:3.5.1
 
 USER root
 
-# 1. Installer les dépendances de compilation (au lieu de software-properties-common)
 RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
@@ -11,7 +10,6 @@ RUN set -eux; \
     libssl-dev libreadline-dev libffi-dev libsqlite3-dev libbz2-dev; \
   rm -rf /var/lib/apt/lists/*
 
-# 2. Télécharger et compiler Python 3.12
 RUN set -eux; \
   curl -O https://www.python.org/ftp/python/3.12.2/Python-3.12.2.tgz; \
   tar -xvf Python-3.12.2.tgz; \
@@ -21,19 +19,15 @@ RUN set -eux; \
   make altinstall; \
   cd ..; \
   rm -rf Python-3.12.2 Python-3.12.2.tgz; \
-  # Créer un lien symbolique pour s'assurer qu'il est accessible partout
   ln -s /usr/local/bin/python3.12 /usr/bin/python3.12
 
-# 3. Installer PIP
 RUN set -eux; \
   curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py; \
   python3.12 /tmp/get-pip.py; \
   rm -f /tmp/get-pip.py
 
-# 4. Installer vos bibliothèques
 RUN python3.12 -m pip install --no-cache-dir beautifulsoup4 requests pandas
 
-# --- Le reste de votre Dockerfile reste identique ---
 RUN set -eux; \
   curl -fL --retry 5 --retry-delay 2 \
     -o /opt/spark/jars/hadoop-aws-3.3.4.jar \

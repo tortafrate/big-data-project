@@ -17,7 +17,7 @@ def run_ingestion(**kwargs):
         return
 
     scraped_data = []
-    for url in urls:
+    for url in urls[:15]:
         data = scraper_instance.scrape_ad(url)
         if data:
             scraped_data.append(data)

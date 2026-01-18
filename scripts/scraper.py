@@ -9,20 +9,18 @@ from datetime import datetime
 
 class Scraper:
     def __init__(self):
-        # Configuration MinIO depuis les variables d'environnement
         self.minio_endpoint = "http://minio:9000"
         self.minio_user = os.getenv('MINIO_ROOT_USER', 'minioadmin')
         self.minio_password = os.getenv('MINIO_ROOT_PASSWORD', 'minioadmin')
         self.bucket_name = "datalake"
         
-        # Initialisation du client S3 (boto3)
         self.s3_client = boto3.client(
             's3',
             endpoint_url=self.minio_endpoint,
             aws_access_key_id=self.minio_user,
             aws_secret_access_key=self.minio_password,
             config=Config(signature_version='s3v4'),
-            region_name='us-east-1' # Requis par boto3 même pour MinIO
+            region_name='us-east-1'
         )
 
     def get_urls_from_sitemap(self, sitemap_url):
@@ -50,10 +48,8 @@ class Scraper:
                 logging.warning(f"Statut {response.status_code} pour {url}")
                 return None
 
-            # On garde le contenu brut (Layer RAW) + métadonnées
             page_soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Extraction basique pour validation
             title = page_soup.title.get_text(strip=True) if page_soup.title else "No Title"
             
             return {
@@ -73,24 +69,19 @@ class Scraper:
             logging.warning("Aucune donnée à sauvegarder.")
             return
 
-        # Structure Clean Naming : raw/source/entity/year/month/day
         year = execution_date.strftime('%Y')
         month = execution_date.strftime('%m')
         day = execution_date.strftime('%d')
         timestamp = execution_date.strftime('%H%M%S')
         
-        # Nom de fichier unique pour ce lot
         filename = f"ads_batch_{timestamp}.json"
-        # Note: Boto3 n'utilise pas le nom du bucket dans la clé (key)
         key_path = f"raw/airsoft/ads/year={year}/month={month}/day={day}/{filename}"
         
         logging.info(f"Sauvegarde vers s3://{self.bucket_name}/{key_path}")
         
         try:
-            # Conversion en JSON String
             json_data = json.dumps(data, ensure_ascii=False)
             
-            # Écriture via Boto3
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
                 Key=key_path,

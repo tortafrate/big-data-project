@@ -20,26 +20,18 @@ def _extract_price_from_text(text: str):
     if not text:
         return None
 
-    # Normalisation
     t = text.replace("\xa0", " ").strip()
 
-    # Cherche un motif prix avant symbole €
-    # Ex: 1 200,50 € / 1200 € / 1200.50 EUR
     m = re.search(r"(\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(€|EUR)\b", t, re.IGNORECASE)
     if not m:
         return None
 
     num = m.group(1)
-    # Retire séparateurs de milliers " " ou "."
     num = num.replace(" ", "")
-    # Si on a "1.200" et pas de décimales, c'est probablement un séparateur de milliers.
-    # On gère simplement en retirant les points si on a aussi plus de 3 chiffres.
     if "." in num and "," not in num:
         parts = num.split(".")
-        # Si tous les blocs sauf le premier font 3 chiffres, on considère milliers
         if all(len(p) == 3 for p in parts[1:]):
             num = "".join(parts)
-    # Décimales : remplace , par .
     num = num.replace(",", ".")
 
     try:
@@ -93,11 +85,9 @@ def run_cleaning(date_partition: str):
     print(f"[CLEAN] Reading RAW from: {raw_path}")
     print(f"[CLEAN] Writing FORMATTED to: {formatted_output}")
 
-    # UDFs
     extract_price_udf = udf(extract_price, DoubleType())
     clean_title_udf = udf(clean_title, StringType())
 
-    # Schéma de sortie garanti (pour écrire même si DF vide)
     out_schema = StructType([
         StructField("url", StringType(), True),
         StructField("scraped_at", StringType(), True),   # conservé tel quel (iso string)
@@ -108,22 +98,18 @@ def run_cleaning(date_partition: str):
     ])
 
     try:
-        # IMPORTANT: ton RAW est un JSON "tableau" (json.dumps(list[dict]))
-        # Spark doit lire en multiLine, sinon lecture partielle/corrompue.
         df_raw = (
             spark.read
             .option("multiLine", "true")
             .json(raw_path)
         )
 
-        # Si df_raw est vide/invalide, on écrit quand même un parquet vide avec schéma
         if df_raw.rdd.isEmpty():
             print("[CLEAN] No RAW rows found. Writing empty FORMATTED with schema.")
             empty_df = spark.createDataFrame([], schema=out_schema)
             empty_df.write.mode("overwrite").parquet(formatted_output)
             return
 
-        # Normalisation / cleaning
         df_clean = (
             df_raw.select(
                 col("url").cast("string").alias("url"),
@@ -136,23 +122,19 @@ def run_cleaning(date_partition: str):
                 coalesce(col("source").cast("string"), lit("airsoft-occasion")).alias("source"),
                 current_timestamp().alias("processing_time")
             )
-            # On garde les lignes même si price est null, mais on impose au moins une URL
             .filter(col("url").isNotNull())
         )
 
-        # Même si 0 ligne (peu probable après filter url), on écrit un parquet avec schéma
         if df_clean.rdd.isEmpty():
             print("[CLEAN] No rows after cleaning. Writing empty FORMATTED with schema.")
             empty_df = spark.createDataFrame([], schema=out_schema)
             empty_df.write.mode("overwrite").parquet(formatted_output)
             return
 
-        # Write parquet utilisable
         df_clean.write.mode("overwrite").parquet(formatted_output)
         print(f"[CLEAN] Cleaning completed. Rows written: {df_clean.count()}")
 
     except Exception as e:
-        # En cas d'erreur, on écrit quand même un parquet vide schématisé pour ne pas casser la suite
         print(f"[CLEAN] Error during cleaning: {e}")
         print("[CLEAN] Writing empty FORMATTED with schema to keep pipeline consistent.")
         empty_df = spark.createDataFrame([], schema=out_schema)
@@ -160,6 +142,5 @@ def run_cleaning(date_partition: str):
 
 
 if __name__ == "__main__":
-    # Airflow passe "year=YYYY/month=MM/day=DD"
     exec_partition = sys.argv[1] if len(sys.argv) > 1 else "year=2026/month=01/day=18"
     run_cleaning(exec_partition)

@@ -20,7 +20,6 @@ def run_aggregation(date_partition: str):
     print(f"[AGG] Reading FORMATTED from: {input_path}")
     print(f"[AGG] Writing USAGE stats to: {output_path}")
 
-    # Schéma stats garanti
     stats_schema = StructType([
         StructField("avg_price", DoubleType(), True),
         StructField("min_price", DoubleType(), True),
@@ -32,7 +31,6 @@ def run_aggregation(date_partition: str):
     try:
         df = spark.read.parquet(input_path)
 
-        # Si aucune ligne (ou parquet vide), on écrit des stats "zéro"
         if df.rdd.isEmpty():
             print("[AGG] FORMATTED is empty. Writing zero-stats parquet.")
             df_stats = spark.createDataFrame(
@@ -48,8 +46,6 @@ def run_aggregation(date_partition: str):
             df_stats.write.mode("overwrite").parquet(output_path)
             return
 
-        # On agrège uniquement sur price non null pour les métriques,
-        # mais total_ads compte toutes les annonces.
         total_ads = df.select(count(lit(1)).alias("total_ads"))
 
         df_price = df.filter(col("price").isNotNull())
@@ -74,7 +70,6 @@ def run_aggregation(date_partition: str):
         print("[AGG] Aggregation completed.")
 
     except Exception as e:
-        # Si erreur (ex: dossier parquet vide), on écrit un parquet de stats "zéro" pour garder un pipeline stable
         print(f"[AGG] Error during aggregation: {e}")
         print("[AGG] Writing zero-stats parquet to keep pipeline consistent.")
 

@@ -31,7 +31,6 @@ RUN set -eux; \
   ln -sfn "/opt/spark-${SPARK_VERSION}-bin-${SPARK_HADOOP_PROFILE}" "${SPARK_HOME}"; \
   chown -R airflow:0 "/opt/spark-${SPARK_VERSION}-bin-${SPARK_HADOOP_PROFILE}" "${SPARK_HOME}"
 
-# --- S3A / MinIO deps (avoid --packages download at runtime) ---
 RUN set -eux; \
   curl -fL --retry 5 --retry-delay 2 \
     -o "${SPARK_HOME}/jars/hadoop-aws-3.3.4.jar" \
